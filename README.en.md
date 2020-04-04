@@ -1,36 +1,21 @@
 # Ventoy
+Ventoy is an open source tool to create bootable USB drive for ISO files.   
+With ventoy, you don't need to format the disk again and again, you just need to copy the iso file to the USB drive and boot it.   
+You can copy many iso files at a time and ventoy will give you a boot menu to select them.  
+Both Legacy BIOS and UEFI are supported in the same way. 100+ ISO files are tested.  
+A "Ventoy Compatible" concept is introduced by ventoy, which can help to support any ISO file.  
 
-#### Description
-Ventoy是一个创建可启动U盘的工具。
+See http://www.ventoy.net for detail.
 
-#### Software Architecture
-Software architecture description
-
-#### Installation
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### Instructions
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### Contribution
-
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
-
-
-#### Gitee Feature
-
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+# Features
+* 100% open source 
+* Simple to use
+* Directly boot from iso file, no extraction needed
+* Legacy + UEFI supported in the same way
+* Native boot menu style for Legacy & UEFI
+* Most type of OS supported, 100+ iso files tested
+* "Ventoy Compatible" concept
+* Plugin Framework
+* Readonly to USB drive during boot
+* USB normal use unafftected
+* Data nondestructive during version upgrade
