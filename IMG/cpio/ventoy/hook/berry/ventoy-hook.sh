@@ -17,23 +17,4 @@
 # 
 #************************************************************************************
 
-. $VTOY_PATH/hook/ventoy-os-lib.sh
-
-#ventoy_systemd_udevd_work_around
-#ventoy_add_udev_rule "$VTOY_PATH/hook/default/udev_disk_hook.sh %k noreplace"
-
-if $GREP -q 'root=live' /proc/cmdline; then
-    $SED "s#printf\(.*\)\$CMDLINE#printf\1\$CMDLINE root=live:/dev/dm-0#" -i /lib/dracut-lib.sh
-else
-    $SED "s#printf\(.*\)\$CMDLINE#printf\1\$CMDLINE inst.stage2=hd:/dev/dm-0#" -i /lib/dracut-lib.sh
-fi
-
-ventoy_set_inotify_script  rhel7/ventoy-inotifyd-hook.sh
-
-$BUSYBOX_PATH/cp -a $VTOY_PATH/hook/rhel7/ventoy-inotifyd-start.sh /lib/dracut/hooks/pre-udev/01-ventoy-inotifyd-start.sh
-
-# suppress write protected mount warning
-if [ -e /usr/sbin/anaconda-diskroot ]; then
-    $SED  's/^mount $dev $repodir/mount -oro $dev $repodir/' -i /usr/sbin/anaconda-diskroot
-fi
-
+$SED "/for .*\$DEVICES/i\ $BUSYBOX_PATH/sh $VTOY_PATH/hook/berry/ventoy-disk.sh" -i /init

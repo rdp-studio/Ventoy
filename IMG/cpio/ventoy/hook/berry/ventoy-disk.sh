@@ -17,23 +17,22 @@
 # 
 #************************************************************************************
 
-. $VTOY_PATH/hook/ventoy-os-lib.sh
+. /ventoy/hook/ventoy-hook-lib.sh
 
-#ventoy_systemd_udevd_work_around
-#ventoy_add_udev_rule "$VTOY_PATH/hook/default/udev_disk_hook.sh %k noreplace"
+vtlog "####### $0 $* ########"
 
-if $GREP -q 'root=live' /proc/cmdline; then
-    $SED "s#printf\(.*\)\$CMDLINE#printf\1\$CMDLINE root=live:/dev/dm-0#" -i /lib/dracut-lib.sh
-else
-    $SED "s#printf\(.*\)\$CMDLINE#printf\1\$CMDLINE inst.stage2=hd:/dev/dm-0#" -i /lib/dracut-lib.sh
+VTPATH_OLD=$PATH; PATH=$BUSYBOX_PATH:$VTOY_PATH/tool:$PATH
+
+wait_for_usb_disk_ready
+
+vtdiskname=$(get_ventoy_disk_name)
+if [ "$vtdiskname" = "unknown" ]; then
+    vtlog "ventoy disk not found"
+    PATH=$VTPATH_OLD
+    exit 0
 fi
 
-ventoy_set_inotify_script  rhel7/ventoy-inotifyd-hook.sh
+ventoy_udev_disk_common_hook "${vtdiskname#/dev/}2"
 
-$BUSYBOX_PATH/cp -a $VTOY_PATH/hook/rhel7/ventoy-inotifyd-start.sh /lib/dracut/hooks/pre-udev/01-ventoy-inotifyd-start.sh
-
-# suppress write protected mount warning
-if [ -e /usr/sbin/anaconda-diskroot ]; then
-    $SED  's/^mount $dev $repodir/mount -oro $dev $repodir/' -i /usr/sbin/anaconda-diskroot
-fi
+PATH=$VTPATH_OLD
 
