@@ -61,14 +61,15 @@ extern BOOL g_SecureBoot;
 
 
 #define VENTOY_LANGUAGE_INI  TEXT(".\\ventoy\\languages.ini")
-#define VENTOY_CFG_INI  TEXT(".\\Ventoy2Disk.ini")
+#define VENTOY_CFG_INI     TEXT(".\\Ventoy2Disk.ini")
+#define VENTOY_CFG_INI_A   ".\\Ventoy2Disk.ini"
 #define VENTOY_MAX_LANGUAGE	 200
 
-#define GET_INI_STRING(Key, Buf) GetPrivateProfileString(Language, Key, TEXT("#"), Buf, sizeof(Buf), VENTOY_LANGUAGE_INI)
+#define GET_INI_STRING(Section, Key, Buf) GetPrivateProfileString(Section, Key, TEXT("#"), Buf, sizeof(Buf), VENTOY_LANGUAGE_INI)
 
 typedef struct VENTOY_LANGUAGE
 {
-	WCHAR Name[64];
+	WCHAR Name[128];
 	WCHAR FontFamily[64];
 	int FontSize;
 
