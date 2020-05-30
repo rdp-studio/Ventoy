@@ -661,6 +661,12 @@ int GetAllPhysicalDriveInfo(PHY_DRIVE_INFO *pDriveList, DWORD *pDriveCount)
             continue;
         }
 
+        if (DevDescHeader.Size < sizeof(STORAGE_DEVICE_DESCRIPTOR))
+        {
+            Log("Invalid DevDescHeader.Size:%u", DevDescHeader.Size);
+            continue;
+        }
+
         pDevDesc = (STORAGE_DEVICE_DESCRIPTOR *)malloc(DevDescHeader.Size);
         if (!pDevDesc)
         {
@@ -1583,6 +1589,18 @@ int UpdateVentoy2PhyDrive(PHY_DRIVE_INFO *pPhyDrive)
         memcpy(MBR.BootCode, BootImg.BootCode, 440);
         bRet = WriteFile(hDrive, &MBR, 512, &dwSize, NULL);
         Log("Write Boot Image ret:%u dwSize:%u Error:%u", bRet, dwSize, LASTERR);
+    }
+
+    if (0x00 == MBR.PartTbl[0].Active && 0x80 == MBR.PartTbl[1].Active)
+    {
+        Log("Need to chage 1st partition active and 2nd partition inactive.");
+
+        MBR.PartTbl[0].Active = 0x80;
+        MBR.PartTbl[1].Active = 0x00;
+
+        SetFilePointer(hDrive, 0, NULL, FILE_BEGIN);
+        bRet = WriteFile(hDrive, &MBR, 512, &dwSize, NULL);
+        Log("Write NEW MBR ret:%u dwSize:%u Error:%u", bRet, dwSize, LASTERR);
     }
 
     //Refresh Drive Layout

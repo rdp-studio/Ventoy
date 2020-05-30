@@ -17,15 +17,11 @@
 # 
 #************************************************************************************
 
-. /ventoy/hook/ventoy-hook-lib.sh
+. $VTOY_PATH/hook/ventoy-os-lib.sh
 
-vtHook=$($CAT $VTOY_PATH/inotifyd-hook-script.txt)
-
-vtdisk=$(get_ventoy_disk_name)
-if [ "$vtdisk" = "unknown" ]; then
-    vtlog "... start inotifyd listen $vtHook ..."
-    $BUSYBOX_PATH/nohup $VTOY_PATH/tool/inotifyd $vtHook  /dev:n  2>&-  & 
-else
-    vtlog "... $vtdisk already exist ..."
-    $BUSYBOX_PATH/sh $vtHook n /dev "${vtdisk#/dev/}2"
+if ! [ -d /dev ]; then
+    $BUSYBOX_PATH/mkdir /dev
 fi
+
+$SED "1a\export ROOT=/dev/mapper/ventoy"  -i /init
+$SED "/check_root \$device/i\ $BUSYBOX_PATH/sh $VTOY_PATH/hook/android/ventoy-disk.sh"  -i /init

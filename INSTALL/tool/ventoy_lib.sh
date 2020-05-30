@@ -22,40 +22,17 @@ ventoy_is_linux64() {
     ventoy_false
 }
 
-ventoy_is_dash() {
-    if [ -L /bin/sh ]; then
-        vtdst=$(readlink /bin/sh)
-        if [ "$vtdst" = "dash" ]; then
-            ventoy_true
-            return
-        fi
-    fi 
-    ventoy_false
-}
-
 vtinfo() {
-    if ventoy_is_dash; then
-        echo "\033[32m$*\033[0m"
-    else
-        echo -e "\033[32m$*\033[0m"
-    fi
+    echo -e "\033[32m$*\033[0m"
 }
 
 vtwarn() {
-    if ventoy_is_dash; then
-        echo "\033[33m$*\033[0m"
-    else
-        echo -e "\033[33m$*\033[0m"
-    fi
+    echo -e "\033[33m$*\033[0m"
 }
 
 
 vterr() {
-    if ventoy_is_dash; then
-        echo "\033[31m$*\033[0m"
-    else
-        echo -e "\033[31m$*\033[0m"
-    fi
+    echo -e "\033[31m$*\033[0m"
 }
 
 vtdebug() {
@@ -207,9 +184,10 @@ get_disk_ventoy_version() {
     ventoy_false
 }
 
-
 format_ventoy_disk() {
     DISK=$1
+    PARTTOOL=$2
+    
     PART1=$(get_disk_part_name $DISK 1)
     PART2=$(get_disk_part_name $DISK 2)
     
@@ -220,15 +198,33 @@ format_ventoy_disk() {
     export part2_start_sector=$(expr $part1_end_sector + 1)
     part2_end_sector=$(expr $sector_num - 1)
 
+    vtdebug "part1_start_sector=$part1_start_sector  part1_end_sector=$part1_end_sector"
+    vtdebug "part2_start_sector=$part2_start_sector  part2_end_sector=$part2_end_sector"
+
     if [ -e $PART2 ]; then
         echo "delete $PART2"
         rm -f $PART2
     fi
 
     echo ""
-    echo "Create partitions on $DISK ..."
+    echo "Create partitions on $DISK by $PARTTOOL ..."
     
-fdisk $DISK >/dev/null 2>&1 <<EOF
+    if [ "$PARTTOOL" = "parted" ]; then
+        vtdebug "format disk by parted ..."
+        parted -a none --script $DISK \
+            mklabel msdos \
+            unit s \
+            mkpart primary ntfs $part1_start_sector $part1_end_sector \
+            mkpart primary fat16 $part2_start_sector $part2_end_sector \
+            set 1 boot on \
+            quit
+
+        sync
+        echo -en '\xEF' | dd of=$DISK conv=fsync bs=1 count=1 seek=466 > /dev/null 2>&1
+    else
+    vtdebug "format disk by fdisk ..."
+    
+fdisk $DISK >>./log.txt 2>&1 <<EOF
 o
 n
 p
@@ -247,14 +243,15 @@ t
 2
 ef
 a
-2
+1
 w
 EOF
-    
-    echo "Done"
+    fi
+   
     udevadm trigger >/dev/null 2>&1
     partprobe >/dev/null 2>&1
     sleep 3
+    echo "Done"
 
     echo 'mkfs on disk partitions ...'
     for i in 1 2 3 4 5 6 7; do
@@ -265,7 +262,8 @@ EOF
             sleep 1
         fi
     done
-    
+
+
     if ! [ -b $PART2 ]; then
         MajorMinor=$(sed "s/:/ /" /sys/class/block/${PART2#/dev/}/dev)        
         echo "mknod -m 0660 $PART2 b $MajorMinor ..."
@@ -278,7 +276,7 @@ EOF
         fi
     fi
 
-    echo "create efi fat fs ..."
+    echo "create efi fat fs $PART2 ..."
     for i in 0 1 2 3 4 5 6 7 8 9; do
         if mkfs.vfat -F 16 -n EFI $PART2; then
             echo 'success'

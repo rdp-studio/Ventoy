@@ -19,13 +19,24 @@
 
 . /ventoy/hook/ventoy-hook-lib.sh
 
-vtHook=$($CAT $VTOY_PATH/inotifyd-hook-script.txt)
-
-vtdisk=$(get_ventoy_disk_name)
-if [ "$vtdisk" = "unknown" ]; then
-    vtlog "... start inotifyd listen $vtHook ..."
-    $BUSYBOX_PATH/nohup $VTOY_PATH/tool/inotifyd $vtHook  /dev:n  2>&-  & 
-else
-    vtlog "... $vtdisk already exist ..."
-    $BUSYBOX_PATH/sh $vtHook n /dev "${vtdisk#/dev/}2"
+if is_ventoy_hook_finished; then
+    exit 0
 fi
+
+vtdiskname=$(get_ventoy_disk_name)
+if [ "$vtdiskname" = "unknown" ]; then
+    vtlog "ventoy disk not found"
+    PATH=$VTPATH_OLD
+    exit 0
+fi
+
+ventoy_udev_disk_common_hook "${vtdiskname#/dev/}2" "noreplace"
+
+if ! [ -e $VTOY_DM_PATH ]; then
+    blkdev_num=$($VTOY_PATH/tool/dmsetup ls | grep ventoy | sed 's/.*(\([0-9][0-9]*\),.*\([0-9][0-9]*\).*/\1 \2/')
+    mknod -m 0666 $VTOY_DM_PATH b $blkdev_num
+fi
+
+# OK finish
+set_ventoy_hook_finish
+
