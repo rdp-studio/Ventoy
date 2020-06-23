@@ -731,11 +731,8 @@ EFI_STATUS EFIAPI ventoy_boot(IN EFI_HANDLE ImageHandle)
             {
                 ventoy_hook_keyboard_start();
             }
-
-            debug("now before start image .....");
-            ventoy_debug_pause();
+            /* can't add debug print here */
             Status = gBS->StartImage(Image, NULL, NULL);
-
             if (g_hook_keyboard)
             {
                 ventoy_hook_keyboard_stop();

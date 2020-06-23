@@ -61,22 +61,7 @@ STATIC UINTN g_keyboard_hook_count = 0;
 STATIC BOOLEAN g_blockio_start_record_bcd = FALSE;
 STATIC BOOLEAN g_blockio_bcd_read_done = FALSE;
 
-typedef struct EFI_SIMPLE_INPUT_EX_HOOK
-{
-    EFI_HANDLE Handle;
-    EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *Protocol;
-    EFI_INPUT_READ_KEY_EX OrgReadKeyEx;
-}EFI_SIMPLE_INPUT_EX_HOOK;
-
-typedef struct EFI_SIMPLE_INPUT_HOOK
-{
-    EFI_HANDLE Handle;
-    EFI_SIMPLE_TEXT_INPUT_PROTOCOL *Protocol;
-    EFI_INPUT_READ_KEY OrgReadKey;
-}EFI_SIMPLE_INPUT_HOOK;
-
-EFI_SIMPLE_INPUT_HOOK *g_simple_input_hooks = NULL;
-EFI_SIMPLE_INPUT_EX_HOOK *g_simple_input_ex_hooks = NULL;
+EFI_INPUT_READ_KEY_EX g_org_read_key_ex = NULL;
 
 EFI_STATUS EFIAPI ventoy_block_io_reset 
 (
@@ -666,141 +651,42 @@ EFI_STATUS EFIAPI ventoy_wrapper_push_openvolume(IN EFI_SIMPLE_FILE_SYSTEM_PROTO
     return EFI_SUCCESS;
 }
 
-STATIC EFI_STATUS EFIAPI ventoy_wrapper_read_key
-(
-    IN EFI_SIMPLE_TEXT_INPUT_PROTOCOL       *This,
-    OUT EFI_INPUT_KEY                       *Key
-)
-{
-    EFI_SIMPLE_INPUT_HOOK *Node = g_simple_input_hooks;
-
-    if (g_keyboard_hook_count == 0 && g_blockio_bcd_read_done == FALSE)
-    {
-        g_keyboard_hook_count++;
-        return EFI_SUCCESS;
-    }
-
-    while (Node)
-    {
-        if (Node->Protocol == This)
-        {
-            return Node->OrgReadKey(This, Key);
-        }
-    
-        Node++;
-    }
-    
-    return EFI_SUCCESS;
-}
-
-
 STATIC EFI_STATUS EFIAPI ventoy_wrapper_read_key_ex
 (
     IN  EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *This,
     OUT EFI_KEY_DATA                      *KeyData
 )
 {
-    EFI_SIMPLE_INPUT_EX_HOOK *Node = g_simple_input_ex_hooks;
-
     if (g_keyboard_hook_count == 0 && g_blockio_bcd_read_done == FALSE)
     {
         g_keyboard_hook_count++;
+
+        KeyData->Key.ScanCode = SCAN_DELETE;
+        KeyData->Key.UnicodeChar = 0;
+        KeyData->KeyState.KeyShiftState = 0;
+        KeyData->KeyState.KeyToggleState = 0;
+        
         return EFI_SUCCESS;
     }
     
-    while (Node)
-    {
-        if (Node->Protocol == This)
-        {
-            return Node->OrgReadKeyEx(This, KeyData);
-        }
-    
-        Node++;
-    }
-    
-    return EFI_SUCCESS;
+    return g_org_read_key_ex(This, KeyData);
 }
 
 EFI_STATUS EFIAPI ventoy_wrapper_simple_input_ex(VOID)
 {
-    UINTN i = 0;
-    UINTN j = 0;
-    UINTN Count = 0;
-    EFI_HANDLE *Handles = NULL;
     EFI_STATUS Status = EFI_SUCCESS;
-    EFI_SIMPLE_TEXT_INPUT_PROTOCOL *Protocol;
-    EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *ProtocolEx;
+    EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *Protocol;
 
-    Status = gBS->LocateHandleBuffer(ByProtocol, &gEfiSimpleTextInputExProtocolGuid, 
-                                     NULL, &Count, &Handles);
+    Status = gBS->HandleProtocol(gST->ConsoleInHandle, &gEfiSimpleTextInputExProtocolGuid, (VOID **)&Protocol);
     if (EFI_ERROR(Status))
     {
-        debug("Failed to handle simple input ex protocol buffer %r", Status);
+        debug("Failed to handle simple input ex protocol %r", Status);
         return Status;
     }
 
-    g_simple_input_ex_hooks = AllocateZeroPool((Count + 1) * sizeof(EFI_SIMPLE_INPUT_EX_HOOK));
-    if (!g_simple_input_ex_hooks)
-    {
-        FreePool(Handles);
-        return EFI_OUT_OF_RESOURCES;
-    }
+    g_org_read_key_ex = Protocol->ReadKeyStrokeEx;
+    Protocol->ReadKeyStrokeEx  = ventoy_wrapper_read_key_ex;
 
-    debug("Input ex handle %lu", Count);
-    for (j = 0, i = 0; i < Count; i++)
-    {
-        Status = gBS->HandleProtocol(Handles[i], &gEfiSimpleTextInputExProtocolGuid, (VOID **)&ProtocolEx);
-        if (EFI_ERROR(Status))
-        {
-            continue;
-        }
-
-        g_simple_input_ex_hooks[j].Handle = Handles[i];
-        g_simple_input_ex_hooks[j].Protocol = ProtocolEx;
-        g_simple_input_ex_hooks[j].OrgReadKeyEx = ProtocolEx->ReadKeyStrokeEx;
-        j++;
-        
-        ProtocolEx->ReadKeyStrokeEx  = ventoy_wrapper_read_key_ex;
-    }
-
-    debug("hook input ex protocol %lu", j);
-    FreePool(Handles);
-
-    Status = gBS->LocateHandleBuffer(ByProtocol, &gEfiSimpleTextInProtocolGuid, 
-                                     NULL, &Count, &Handles);
-    if (EFI_ERROR(Status))
-    {
-        debug("Failed to handle simple input protocol buffer %r", Status);
-        return Status;
-    }
-
-    g_simple_input_hooks = AllocateZeroPool((Count + 1) * sizeof(EFI_SIMPLE_INPUT_HOOK));
-    if (!g_simple_input_hooks)
-    {
-        FreePool(Handles);
-        return EFI_OUT_OF_RESOURCES;
-    }
-    
-    debug("Input handle %lu", Count);
-    for (j = 0, i = 0; i < Count; i++)
-    {
-        Status = gBS->HandleProtocol(Handles[i], &gEfiSimpleTextInProtocolGuid, (VOID **)&Protocol);
-        if (EFI_ERROR(Status))
-        {
-            continue;
-        }
-
-        g_simple_input_hooks[j].Handle = Handles[i];
-        g_simple_input_hooks[j].Protocol = Protocol;
-        g_simple_input_hooks[j].OrgReadKey = Protocol->ReadKeyStroke;
-        j++;
-        
-        Protocol->ReadKeyStroke  = ventoy_wrapper_read_key;
-    }
-
-    debug("hook input protocol %lu", j);
-    FreePool(Handles);
-    
     return EFI_SUCCESS;
 }
 
@@ -817,30 +703,18 @@ EFI_STATUS ventoy_hook_keyboard_start(VOID)
 
 EFI_STATUS ventoy_hook_keyboard_stop(VOID)
 {
-    EFI_SIMPLE_INPUT_HOOK *Node = g_simple_input_hooks;
-    EFI_SIMPLE_INPUT_EX_HOOK *NodeEx = g_simple_input_ex_hooks;
+    EFI_STATUS Status = EFI_SUCCESS;
+    EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *Protocol;
     
     g_blockio_start_record_bcd = FALSE;
     g_blockio_bcd_read_done = FALSE;
     g_keyboard_hook_count = 0;
 
-    while (Node)
+    Status = gBS->HandleProtocol(gST->ConsoleInHandle, &gEfiSimpleTextInputExProtocolGuid, (VOID **)&Protocol);
+    if (EFI_SUCCESS == Status)
     {
-        Node->Protocol->ReadKeyStroke = Node->OrgReadKey;
-        Node++;
+        Protocol->ReadKeyStrokeEx = g_org_read_key_ex;
     }
-    
-    while (NodeEx)
-    {
-        NodeEx->Protocol->ReadKeyStrokeEx = NodeEx->OrgReadKeyEx;
-        NodeEx++;
-    }
-
-    FreePool(g_simple_input_hooks);
-    FreePool(g_simple_input_ex_hooks);
-    
-    g_simple_input_hooks = NULL;
-    g_simple_input_ex_hooks = NULL;
 
     return EFI_SUCCESS;
 }
