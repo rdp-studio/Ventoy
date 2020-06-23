@@ -325,6 +325,8 @@ EFI_STATUS EFIAPI ventoy_wrapper_open_volume
 );
 EFI_STATUS EFIAPI ventoy_install_blockio(IN EFI_HANDLE ImageHandle, IN UINT64 ImgSize);
 EFI_STATUS EFIAPI ventoy_wrapper_push_openvolume(IN EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_OPEN_VOLUME OpenVolume);
-
+EFI_STATUS ventoy_hook_keyboard_start(VOID);
+EFI_STATUS ventoy_hook_keyboard_stop(VOID);
+    
 #endif
 

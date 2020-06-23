@@ -36,6 +36,10 @@
 #include <Protocol/SimpleFileSystem.h>
 #include <Ventoy.h>
 
+#define PROCOTOL_SLEEP_SECONDS  0
+
+#define debug_sleep() if (PROCOTOL_SLEEP_SECONDS) sleep(PROCOTOL_SLEEP_SECONDS)
+
 STATIC ventoy_system_wrapper g_system_wrapper;
 
 static struct well_known_guid g_efi_well_known_guids[] = 
@@ -261,6 +265,9 @@ EFI_STATUS EFIAPI ventoy_wrapper_file_procotol(EFI_FILE_PROTOCOL *File)
     return EFI_SUCCESS;
 }
 
+
+
+
 STATIC EFI_STATUS EFIAPI ventoy_handle_protocol
 (
     IN  EFI_HANDLE                Handle,
@@ -270,7 +277,7 @@ STATIC EFI_STATUS EFIAPI ventoy_handle_protocol
 {
     EFI_STATUS Status = EFI_SUCCESS;
     
-    debug("ventoy_handle_protocol:%a", ventoy_get_guid_name(Protocol)); 
+    trace("ventoy_handle_protocol:%a", ventoy_get_guid_name(Protocol)); debug_sleep();
     Status = g_system_wrapper.OriHandleProtocol(Handle, Protocol, Interface);
 
     if (CompareGuid(Protocol, &gEfiSimpleFileSystemProtocolGuid))
@@ -280,7 +287,7 @@ STATIC EFI_STATUS EFIAPI ventoy_handle_protocol
         
         pFile->OpenVolume(pFile, &FileProtocol);
         
-        debug("Handle FS Protocol: %p OpenVolume:%p, FileProtocol:%p, Open:%p", 
+        trace("Handle FS Protocol: %p OpenVolume:%p, FileProtocol:%p, Open:%p", 
             pFile, pFile->OpenVolume, FileProtocol, FileProtocol->Open); 
 
         sleep(3);
@@ -299,7 +306,7 @@ STATIC EFI_STATUS EFIAPI ventoy_open_protocol
     IN  UINT32                     Attributes
 )
 {
-    debug("ventoy_open_protocol:%a", ventoy_get_guid_name(Protocol));
+    trace("ventoy_open_protocol:%a", ventoy_get_guid_name(Protocol));  debug_sleep();
     return g_system_wrapper.OriOpenProtocol(Handle, Protocol, Interface, AgentHandle, ControllerHandle, Attributes);
 }
 
@@ -310,15 +317,16 @@ STATIC EFI_STATUS EFIAPI ventoy_locate_protocol
     OUT VOID      **Interface
 )
 {
-    debug("ventoy_locate_protocol:%a", ventoy_get_guid_name(Protocol));
+    trace("ventoy_locate_protocol:%a", ventoy_get_guid_name(Protocol));  debug_sleep();
     return g_system_wrapper.OriLocateProtocol(Protocol, Registration, Interface);
 }
+
 
 EFI_STATUS EFIAPI ventoy_wrapper_system(VOID)
 {
     ventoy_wrapper(gBS, g_system_wrapper, LocateProtocol, ventoy_locate_protocol);
     ventoy_wrapper(gBS, g_system_wrapper, HandleProtocol, ventoy_handle_protocol);
-    ventoy_wrapper(gBS, g_system_wrapper, OpenProtocol,    ventoy_open_protocol);
+    ventoy_wrapper(gBS, g_system_wrapper, OpenProtocol,   ventoy_open_protocol);
 
     return EFI_SUCCESS;
 }

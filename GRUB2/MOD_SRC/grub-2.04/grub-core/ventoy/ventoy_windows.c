@@ -45,6 +45,9 @@ static int g_wim_total_patch_count = 0;
 static int g_wim_valid_patch_count = 0;
 static wim_patch *g_wim_patch_head = NULL;
 
+static grub_uint64_t g_suppress_wincd_override_offset = 0;
+static grub_uint32_t g_suppress_wincd_override_data = 0;
+
 grub_uint8_t g_temp_buf[512];
 
 grub_ssize_t lzx_decompress ( const void *data, grub_size_t len, void *buf );
@@ -923,13 +926,15 @@ grub_err_t ventoy_cmd_locate_wim_patch(grub_extcmd_context_t ctxt, int argc, cha
 
 static grub_uint32_t ventoy_get_override_chunk_num(void)
 {
+    grub_uint32_t chunk_num = 0;
+    
     if (g_iso_fs_type == 0)
     {
         /* ISO9660: */
         /* per wim */
         /* 1: file_size and file_offset */
         /* 2: new wim file header */
-        return g_wim_valid_patch_count * 2;
+        chunk_num = g_wim_valid_patch_count * 2;
     }
     else
     {
@@ -941,8 +946,15 @@ static grub_uint32_t ventoy_get_override_chunk_num(void)
         /* 1: file_size in file_entry or extend_file_entry */
         /* 2: data_size and position in extend data short ad */
         /* 3: new wim file header */
-        return g_wim_valid_patch_count * 3 + 1;        
+        chunk_num = g_wim_valid_patch_count * 3 + 1;
     }
+
+    if (g_suppress_wincd_override_offset > 0)
+    {
+        chunk_num++;
+    }
+
+    return chunk_num;
 }
 
 static void ventoy_windows_fill_override_data_iso9660(    grub_uint64_t isosize, void *override)
@@ -957,6 +969,14 @@ static void ventoy_windows_fill_override_data_iso9660(    grub_uint64_t isosize,
     sector = (isosize + 2047) / 2048;
 
     cur = (ventoy_override_chunk *)override;
+
+    if (g_suppress_wincd_override_offset > 0)
+    {
+        cur->override_size = 4;
+        cur->img_offset = g_suppress_wincd_override_offset;
+        grub_memcpy(cur->override_data, &g_suppress_wincd_override_data, cur->override_size);
+        cur++;
+    }
 
     debug("ventoy_windows_fill_override_data_iso9660 %lu\n", (ulong)isosize);
 
@@ -1012,6 +1032,14 @@ static void ventoy_windows_fill_override_data_udf(    grub_uint64_t isosize, voi
     sector = (isosize + 2047) / 2048;
 
     cur = (ventoy_override_chunk *)override;
+    
+    if (g_suppress_wincd_override_offset > 0)
+    {
+        cur->override_size = 4;
+        cur->img_offset = g_suppress_wincd_override_offset;
+        grub_memcpy(cur->override_data, &g_suppress_wincd_override_data, cur->override_size);
+        cur++;
+    }
 
     debug("ventoy_windows_fill_override_data_udf %lu\n", (ulong)isosize);
 
@@ -1182,6 +1210,60 @@ static int ventoy_windows_drive_map(ventoy_chain_head *chain)
     return 0;
 }
 
+static int ventoy_suppress_windows_cd_prompt(void)
+{
+    int rc = 1;
+    const char  *cdprompt = NULL;
+    grub_uint64_t readpos = 0;
+    grub_file_t file = NULL;
+    grub_uint8_t data[32];
+
+    cdprompt = ventoy_get_env("VTOY_WINDOWS_CD_PROMPT");
+    if (cdprompt && cdprompt[0] == '1' && cdprompt[1] == 0)
+    {
+        debug("VTOY_WINDOWS_CD_PROMPT:<%s>\n", cdprompt);
+        return 0;
+    }
+
+    g_ventoy_case_insensitive = 1;
+    file = ventoy_grub_file_open(VENTOY_FILE_TYPE, "%s/boot/bootfix.bin", "(loop)");
+    g_ventoy_case_insensitive = 0;
+
+    if (!file)
+    {
+        debug("Failed to open %s\n", "bootfix.bin");
+        goto end;
+    }
+
+    grub_file_read(file, data, 32);
+    if (0 == g_iso_fs_type)
+    {            
+        readpos = grub_iso9660_get_last_read_pos(file);
+    }
+    else
+    {
+        readpos = grub_udf_get_file_offset(file);
+    }
+
+    debug("bootfix.bin readpos:%lu (sector:%lu)  data: %02x %02x %02x %02x\n", 
+        (ulong)readpos, (ulong)readpos / 2048, data[24], data[25], data[26], data[27]);
+
+    if (*(grub_uint32_t *)(data + 24) == 0x13cd0080)
+    {
+        g_suppress_wincd_override_offset = readpos + 24;
+        g_suppress_wincd_override_data = 0x13cd00fd;
+
+        rc = 0;
+    }
+
+    debug("g_suppress_wincd_override_offset:%lu\n", (ulong)g_suppress_wincd_override_offset);
+
+end:
+    check_free(file, grub_file_close);
+
+    return rc;
+}
+
 grub_err_t ventoy_cmd_windows_chain_data(grub_extcmd_context_t ctxt, int argc, char **args)
 {
     int unknown_image = 0;
@@ -1248,6 +1330,12 @@ grub_err_t ventoy_cmd_windows_chain_data(grub_extcmd_context_t ctxt, int argc, c
         {
             return grub_error(GRUB_ERR_BAD_ARGUMENT, "File %s is not bootable", args[0]);
         }
+    }
+
+    g_suppress_wincd_override_offset = 0;
+    if (!ventoy_is_efi_os()) /* legacy mode */
+    {
+        ventoy_suppress_windows_cd_prompt();
     }
 
     img_chunk_size = g_img_chunk_list.cur_chunk * sizeof(ventoy_img_chunk);
