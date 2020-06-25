@@ -725,13 +725,12 @@ EFI_STATUS EFIAPI ventoy_boot(IN EFI_HANDLE ImageHandle)
                 pFile->OpenVolume = ventoy_wrapper_open_volume;
             }
 
-            //ventoy_wrapper_system();
-
             if (g_hook_keyboard)
             {
                 ventoy_hook_keyboard_start();
             }
             /* can't add debug print here */
+            //ventoy_wrapper_system();
             Status = gBS->StartImage(Image, NULL, NULL);
             if (g_hook_keyboard)
             {
@@ -771,6 +770,7 @@ EFI_STATUS EFIAPI VentoyEfiMain
 )
 {
     EFI_STATUS Status = EFI_SUCCESS;
+    EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL *Protocol;
     
     g_sector_flag_num = 512; /* initial value */
 
@@ -778,6 +778,12 @@ EFI_STATUS EFIAPI VentoyEfiMain
     if (NULL == g_sector_flag)
     {
         return EFI_OUT_OF_RESOURCES;
+    }
+
+    Status = gBS->HandleProtocol(gST->ConsoleInHandle, &gEfiSimpleTextInputExProtocolGuid, (VOID **)&Protocol);
+    if (EFI_SUCCESS == Status)
+    {
+        g_con_simple_input_ex = Protocol;
     }
 
     gST->ConOut->ClearScreen(gST->ConOut);

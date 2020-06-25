@@ -957,6 +957,15 @@ static grub_uint32_t ventoy_get_override_chunk_num(void)
     return chunk_num;
 }
 
+static void ventoy_fill_suppress_wincd_override_data(void *override)
+{
+    ventoy_override_chunk *cur = (ventoy_override_chunk *)override;
+
+    cur->override_size = 4;
+    cur->img_offset = g_suppress_wincd_override_offset;
+    grub_memcpy(cur->override_data, &g_suppress_wincd_override_data, cur->override_size);
+}
+
 static void ventoy_windows_fill_override_data_iso9660(    grub_uint64_t isosize, void *override)
 {
     grub_uint64_t sector;
@@ -972,9 +981,7 @@ static void ventoy_windows_fill_override_data_iso9660(    grub_uint64_t isosize,
 
     if (g_suppress_wincd_override_offset > 0)
     {
-        cur->override_size = 4;
-        cur->img_offset = g_suppress_wincd_override_offset;
-        grub_memcpy(cur->override_data, &g_suppress_wincd_override_data, cur->override_size);
+        ventoy_fill_suppress_wincd_override_data(cur);
         cur++;
     }
 
@@ -1035,9 +1042,7 @@ static void ventoy_windows_fill_override_data_udf(    grub_uint64_t isosize, voi
     
     if (g_suppress_wincd_override_offset > 0)
     {
-        cur->override_size = 4;
-        cur->img_offset = g_suppress_wincd_override_offset;
-        grub_memcpy(cur->override_data, &g_suppress_wincd_override_data, cur->override_size);
+        ventoy_fill_suppress_wincd_override_data(cur);
         cur++;
     }
 
@@ -1236,13 +1241,14 @@ static int ventoy_suppress_windows_cd_prompt(void)
     }
 
     grub_file_read(file, data, 32);
-    if (0 == g_iso_fs_type)
-    {            
-        readpos = grub_iso9660_get_last_read_pos(file);
+
+    if (file->fs && file->fs->name && grub_strcmp(file->fs->name, "udf") == 0)
+    {
+        readpos = grub_udf_get_file_offset(file);
     }
     else
     {
-        readpos = grub_udf_get_file_offset(file);
+        readpos = grub_iso9660_get_last_read_pos(file);
     }
 
     debug("bootfix.bin readpos:%lu (sector:%lu)  data: %02x %02x %02x %02x\n", 
@@ -1342,7 +1348,8 @@ grub_err_t ventoy_cmd_windows_chain_data(grub_extcmd_context_t ctxt, int argc, c
     
     if (ventoy_compatible || unknown_image)
     {
-        size = sizeof(ventoy_chain_head) + img_chunk_size;
+        override_size = g_suppress_wincd_override_offset > 0 ? sizeof(ventoy_override_chunk) : 0;
+        size = sizeof(ventoy_chain_head) + img_chunk_size + override_size;
     }
     else
     {
@@ -1407,6 +1414,13 @@ grub_err_t ventoy_cmd_windows_chain_data(grub_extcmd_context_t ctxt, int argc, c
 
     if (ventoy_compatible || unknown_image)
     {
+        if (g_suppress_wincd_override_offset > 0)
+        {
+            chain->override_chunk_offset = chain->img_chunk_offset + img_chunk_size;
+            chain->override_chunk_num = 1;
+            ventoy_fill_suppress_wincd_override_data((char *)chain + chain->override_chunk_offset);
+        }
+
         return 0;
     }
 
