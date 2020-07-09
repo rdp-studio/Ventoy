@@ -31,7 +31,7 @@ while ! grep -q 524288 /sys/block/${LOOP#/dev/}/size 2>/dev/null; do
     sleep 1
 done
 
-format_ventoy_disk $LOOP fdisk
+format_ventoy_disk_mbr 0 $LOOP fdisk
 
 $GRUB_DIR/sbin/grub-bios-setup  --skip-fs-probe  --directory="./grub/i386-pc"  $LOOP
 
@@ -104,7 +104,7 @@ cd $CurDir
 tar -czvf ventoy-${curver}-linux.tar.gz $tmpdir
 
 rm -f ventoy-${curver}-windows.zip
-cp -a Ventoy2Disk.exe $tmpdir/
+cp -a Ventoy2Disk*.exe $tmpdir/
 cp -a $LANG_DIR/languages.ini $tmpdir/ventoy/
 rm -rf $tmpdir/tool
 rm -f $tmpdir/*.sh
