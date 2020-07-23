@@ -62,7 +62,7 @@ cp -a ./tool/ENROLL_THIS_KEY_IN_MOKMANAGER.cer $tmpmnt/
 mkdir -p $tmpmnt/tool
 cp -a ./tool/mount*     $tmpmnt/tool/
 
-rm -f $tmpmnt/grub/i386-pc/*
+rm -f $tmpmnt/grub/i386-pc/*.img
 
 
 umount $tmpmnt && rm -rf $tmpmnt
@@ -77,7 +77,10 @@ dd if=$LOOP of=$tmpdir/boot/core.img bs=512 count=2047 skip=1 status=none
 xz --check=crc32 $tmpdir/boot/core.img
 
 cp -a ./tool $tmpdir/
+rm -f $tmpdir/ENROLL_THIS_KEY_IN_MOKMANAGER.cer
 cp -a Ventoy2Disk.sh $tmpdir/
+cp -a README $tmpdir/
+cp -a plugin $tmpdir/
 cp -a CreatePersistentImg.sh $tmpdir/
 dos2unix -q $tmpdir/Ventoy2Disk.sh
 dos2unix -q $tmpdir/CreatePersistentImg.sh
@@ -108,6 +111,7 @@ cp -a Ventoy2Disk*.exe $tmpdir/
 cp -a $LANG_DIR/languages.ini $tmpdir/ventoy/
 rm -rf $tmpdir/tool
 rm -f $tmpdir/*.sh
+rm -f $tmpdir/README
 
 
 zip -r ventoy-${curver}-windows.zip $tmpdir/

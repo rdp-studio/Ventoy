@@ -1459,6 +1459,7 @@ grub_uint32_t ventoy_get_iso_boot_catlog(grub_file_t file)
 int ventoy_has_efi_eltorito(grub_file_t file, grub_uint32_t sector)
 {
     int i;
+    int x86count = 0;
     grub_uint8_t buf[512];
 
     grub_file_seek(file, sector * 2048);
@@ -1470,11 +1471,22 @@ int ventoy_has_efi_eltorito(grub_file_t file, grub_uint32_t sector)
         return 1;
     }
 
+    if (buf[0] == 0x01 && buf[1] == 0x00)
+    {
+        x86count++;
+    }
+
     for (i = 64; i < (int)sizeof(buf); i += 32)
     {
         if ((buf[i] == 0x90 || buf[i] == 0x91) && buf[i + 1] == 0xEF)
         {
             debug("%s efi eltorito offset %d 0x%02x\n", file->name, i, buf[i]);
+            return 1;
+        }
+
+        if (buf[i] == 0x91 && buf[i + 1] == 0x00 && x86count == 1)
+        {
+            debug("0x9100 assume %s efi eltorito offset %d 0x%02x\n", file->name, i, buf[i]);
             return 1;
         }
     }
@@ -2005,6 +2017,17 @@ static grub_err_t ventoy_cmd_dump_img_list(grub_extcmd_context_t ctxt, int argc,
     return 0;
 }
 
+static grub_err_t ventoy_cmd_dump_injection(grub_extcmd_context_t ctxt, int argc, char **args)
+{
+    (void)ctxt;
+    (void)argc;
+    (void)args;
+
+    ventoy_plugin_dump_injection();
+
+    return 0;
+}
+
 static grub_err_t ventoy_cmd_dump_auto_install(grub_extcmd_context_t ctxt, int argc, char **args)
 {
     (void)ctxt;
@@ -2155,7 +2178,7 @@ static grub_err_t ventoy_cmd_find_bootable_hdd(grub_extcmd_context_t ctxt, int a
         return grub_error(GRUB_ERR_BAD_ARGUMENT, "Usage: %s variable\n", cmd_raw_name); 
     }
 
-    isopath = grub_env_get("iso_path");
+    isopath = grub_env_get("vtoy_iso_part");
     if (!isopath)
     {
         debug("isopath is null %p\n", isopath);
@@ -2309,9 +2332,6 @@ static int ventoy_env_init(void)
     char buf[64];
 
     grub_env_set("vtdebug_flag", "");
-    grub_env_export("vtdebug_flag");
-
-
 
     g_tree_script_buf = grub_malloc(VTOY_MAX_SCRIPT_BUF);
     g_list_script_buf = grub_malloc(VTOY_MAX_SCRIPT_BUF);
@@ -2352,6 +2372,7 @@ static cmd_para ventoy_cmds[] =
     { "vt_dynamic_menu", ventoy_cmd_dynamic_menu, 0, NULL, "", "", NULL },
     { "vt_check_mode", ventoy_cmd_check_mode, 0, NULL, "", "", NULL },
     { "vt_dump_img_list", ventoy_cmd_dump_img_list, 0, NULL, "", "", NULL },
+    { "vt_dump_injection", ventoy_cmd_dump_injection, 0, NULL, "", "", NULL },
     { "vt_dump_auto_install", ventoy_cmd_dump_auto_install, 0, NULL, "", "", NULL },
     { "vt_dump_persistence", ventoy_cmd_dump_persistence, 0, NULL, "", "", NULL },
     { "vt_select_auto_install", ventoy_cmd_sel_auto_install, 0, NULL, "", "", NULL },

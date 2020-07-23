@@ -134,7 +134,8 @@ typedef struct PHY_DRIVE_INFO
     CHAR SerialNumber[128];
     STORAGE_BUS_TYPE BusType;
 
-    int FirstDriveLetter;
+    CHAR DriveLetters[64];
+
     CHAR VentoyVersion[32];
 
 }PHY_DRIVE_INFO;
@@ -165,6 +166,8 @@ extern PHY_DRIVE_INFO *g_PhyDriveList;
 extern DWORD g_PhyDriveCount;
 extern int g_ForceOperation;
 extern HWND g_ProgressBarHwnd;
+extern HFONT g_language_normal_font;
+extern HFONT g_language_bold_font;
 
 void Log(const char *Fmt, ...);
 BOOL IsPathExist(BOOL Dir, const char *Fmt, ...);
