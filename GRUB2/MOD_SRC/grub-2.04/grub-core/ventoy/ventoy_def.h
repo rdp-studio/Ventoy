@@ -23,6 +23,8 @@
 
 #define VTOY_MAX_SCRIPT_BUF    (4 * 1024 * 1024)
 
+#define VTOY_PART_BUF_LEN  (128 * 1024)
+
 #define VTOY_FILT_MIN_FILE_SIZE  32768
 
 #define VTOY_SIZE_1GB     1073741824
@@ -467,6 +469,7 @@ grub_err_t ventoy_cmd_linux_locate_initrd(grub_extcmd_context_t ctxt, int argc, 
 grub_err_t ventoy_cmd_initrd_count(grub_extcmd_context_t ctxt, int argc, char **args);
 grub_err_t ventoy_cmd_valid_initrd_count(grub_extcmd_context_t ctxt, int argc, char **args);
 grub_err_t ventoy_cmd_load_cpio(grub_extcmd_context_t ctxt, int argc, char **args);
+grub_err_t ventoy_cmd_trailer_cpio(grub_extcmd_context_t ctxt, int argc, char **args);
 int ventoy_cpio_newc_fill_head(void *buf, int filesize, const void *filedata, const char *name);
 grub_file_t ventoy_grub_file_open(enum grub_file_type type, const char *fmt, ...);
 grub_uint64_t ventoy_grub_get_file_size(const char *fmt, ...);

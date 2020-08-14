@@ -47,6 +47,12 @@ ventoy_get_os_type() {
     echo "kernel version" >> $VTLOG
     $CAT /proc/version >> $VTLOG
 
+    if [ -d /twres ]; then
+        if $GREP -q 'Phoenix' /init; then
+            echo 'phoenixos'; return
+        fi
+    fi
+
     # rhel5/CentOS5 and all other distributions based on them
     if $GREP -q 'el5' /proc/version; then
         echo 'rhel5'; return
@@ -93,6 +99,10 @@ ventoy_get_os_type() {
     
     # gentoo
     elif $EGREP -q '[Gg]entoo' /proc/version; then
+        if $GREP -q 'daphile' /proc/version; then
+            echo 'daphile'; return
+        fi
+    
         echo 'gentoo'; return
         
     # TinyCore
@@ -119,9 +129,13 @@ ventoy_get_os_type() {
     elif $GREP -q 'Alpine' /proc/version; then
         echo 'alpine'; return
 
+    elif $GREP -i -q 'PhoenixOS' /proc/version; then
+        echo 'phoenixos'; return
+    
     # NixOS
     elif $GREP -i -q 'NixOS' /proc/version; then
         echo 'nixos'; return
+    
     
     fi
 
@@ -136,6 +150,8 @@ ventoy_get_os_type() {
             echo 'suse'; return        
         elif $GREP -q 'uruk' /etc/os-release; then
             echo 'debian'; return
+        elif $GREP -q 'Solus' /etc/os-release; then
+            echo 'rhel7'; return
         fi
     fi
     
@@ -223,6 +239,14 @@ ventoy_get_os_type() {
     
     if $GREP -q 'iwamoto' /proc/version; then
         echo 'vine'; return
+    fi
+    
+    if $GREP -q 'hyperbola' /proc/cmdline; then
+        echo 'hyperbola'; return
+    fi
+    
+    if $GREP -q 'CRUX' /proc/version; then
+        echo 'crux'; return
     fi
     
     echo "default"
