@@ -3,7 +3,6 @@ Ventoy是一个制作可启动U盘的开源工具。有了Ventoy你就无需反�
 你可以一次性拷贝很多个不同类型的ISO文件，在启动时Ventoy会显示一个菜单来选择。 
 无差异支持Legacy BIOS和UEFI模式。目前已经测试了各类超过470+ 个ISO文件(列表). 
 同时提出了"Ventoy Compatible"的概念，若被支持则理论上可以启动任何ISO文件.
-项目官网: [https://www.ventoy.net](https://www.ventoy.net)
 
 # 特点
 - 100% 开源 (许可证)
